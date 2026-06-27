@@ -54,6 +54,7 @@ jobs:
             -Dsonar.projectKey=zaidhk_Fast_CI-CD
             -Dsonar.sources=app/
             -Dsonar.python.coverage.reportPaths=coverage.xml
+            -Dsonar.scanner.automaticAnalysis=false
 
       - name: Stage 5 - Quality Gate
         env:
