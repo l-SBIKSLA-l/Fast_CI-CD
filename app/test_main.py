@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-from main import app, REQUEST_COUNT, REQUEST_LATENCY, IN_PROGRESS
+from main import app
 from prometheus_client import REGISTRY
 
 client = TestClient(app)
