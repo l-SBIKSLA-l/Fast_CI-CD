@@ -113,9 +113,20 @@ jobs:
 
       - name: Stage 9 - Smoke Test
         run: |
-          sleep 5
-          curl -sf http://localhost:${{ env.STAGING_PORT }}/health || exit 1
-          echo "Smoke test passed: staging is healthy"
+          echo "Waiting for staging container to be ready..."
+          docker ps --filter name=cicd-api-staging --format "table {{.Names}}\t{{.Status}}"
+          for i in $(seq 1 12); do
+            if curl -sf http://localhost:${{ env.STAGING_PORT }}/health > /dev/null 2>&1; then
+              echo "Smoke test passed: staging is healthy"
+              curl -s http://localhost:${{ env.STAGING_PORT }}/health
+              exit 0
+            fi
+            echo "Attempt $i/12 - waiting..."
+            sleep 5
+          done
+          echo "Smoke test failed: staging not responding after 60s"
+          docker logs cicd-api-staging 2>/dev/null || true
+          exit 1
 
       - name: Cleanup staging
         if: always()
