@@ -104,6 +104,7 @@ jobs:
           terraform_wrapper: false
 
       - name: Stage 8 - IaC Apply
+        id: terraform_apply
         run: |
           cd infra
           terraform init
@@ -111,21 +112,31 @@ jobs:
             -var="docker_image=ghcr.io/${{ env.OWNER_LC }}/cicd-api:latest" \
             -var="staging_port=${{ env.STAGING_PORT }}"
 
+      - name: Debug - Container logs
+        if: always()
+        run: |
+          echo "=== Docker ps ==="
+          docker ps -a --filter name=cicd-api-staging
+          echo "=== Container logs ==="
+          docker logs cicd-api-staging 2>&1 || echo "No logs available"
+          echo "=== Docker inspect ==="
+          docker inspect cicd-api-staging --format '{{.State.Status}} {{.State.ExitCode}} {{.State.Error}}' 2>/dev/null || echo "Container not found"
+
       - name: Stage 9 - Smoke Test
+        if: steps.terraform_apply.outcome == 'success'
         run: |
           echo "Waiting for staging container to be ready..."
-          docker ps --filter name=cicd-api-staging --format "table {{.Names}}\t{{.Status}}"
           for i in $(seq 1 12); do
             if curl -sf http://localhost:${{ env.STAGING_PORT }}/health > /dev/null 2>&1; then
               echo "Smoke test passed: staging is healthy"
               curl -s http://localhost:${{ env.STAGING_PORT }}/health
               exit 0
             fi
-            echo "Attempt $i/12 - waiting..."
+            echo "Attempt $i/12 - waiting 5s..."
             sleep 5
           done
-          echo "Smoke test failed: staging not responding after 60s"
-          docker logs cicd-api-staging 2>/dev/null || true
+          echo "Smoke test failed"
+          docker logs cicd-api-staging 2>&1 || true
           exit 1
 
       - name: Cleanup staging
